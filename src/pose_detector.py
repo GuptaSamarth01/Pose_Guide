@@ -1,18 +1,22 @@
 import cv2
 import mediapipe as mp
+import numpy as np
 
 
 class PoseDetector:
 
     def __init__(self):
 
-        # MediaPipe Pose module
+        # MediaPipe Pose
         self.mp_pose = mp.solutions.pose
 
-        # Drawing utility
+        # MediaPipe Drawing
         self.mp_drawing = mp.solutions.drawing_utils
 
-        # Pose model initialization
+        # MediaPipe Selfie Segmentation
+        self.mp_selfie_segmentation = mp.solutions.selfie_segmentation
+
+        # Pose Model
         self.pose = self.mp_pose.Pose(
             static_image_mode=False,
             model_complexity=1,
@@ -20,7 +24,12 @@ class PoseDetector:
             min_tracking_confidence=0.5
         )
 
-        # Important landmarks for V1
+        # Segmentation Model
+        self.selfie_segmentation = self.mp_selfie_segmentation.SelfieSegmentation(
+            model_selection=1
+        )
+
+        # Important landmarks
         self.landmark_ids = {
             "LEFT_SHOULDER": 11,
             "RIGHT_SHOULDER": 12,
@@ -32,46 +41,68 @@ class PoseDetector:
 
     def detect_pose(self, frame):
 
-        # Convert BGR to RGB
+        # Create copy
+        output_frame = frame.copy()
+
+        # Convert BGR → RGB
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-        # Process pose
-        results = self.pose.process(rgb_frame)
+        # Process pose detection
+        pose_results = self.pose.process(rgb_frame)
 
-        # Dictionary for storing landmarks
+        # Process segmentation
+        segmentation_results = self.selfie_segmentation.process(rgb_frame)
+
+        # Landmark dictionary
         landmarks = {}
 
         # Get image dimensions
         height, width, _ = frame.shape
 
-        # Check if pose landmarks detected
-        if results.pose_landmarks:
+        # ==========================
+        # SEGMENTATION MASK
+        # ==========================
+
+        segmentation_mask = segmentation_results.segmentation_mask
+
+        # Convert probability mask to binary mask
+        condition = segmentation_mask > 0.5
+
+        binary_mask = np.zeros((height, width), dtype=np.uint8)
+
+        binary_mask[condition] = 255
+
+        # ==========================
+        # POSE LANDMARKS
+        # ==========================
+
+        if pose_results.pose_landmarks:
 
             # Draw skeleton
             self.mp_drawing.draw_landmarks(
-                frame,
-                results.pose_landmarks,
+                output_frame,
+                pose_results.pose_landmarks,
                 self.mp_pose.POSE_CONNECTIONS
             )
 
             # Extract selected landmarks
             for name, idx in self.landmark_ids.items():
 
-                landmark = results.pose_landmarks.landmark[idx]
+                landmark = pose_results.pose_landmarks.landmark[idx]
 
-                # Convert normalized coordinates to pixels
+                # Convert normalized → pixel coordinates
                 x = int(landmark.x * width)
                 y = int(landmark.y * height)
 
                 # Store coordinates
                 landmarks[name] = (x, y)
 
-                # Draw point for debugging
-                cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
+                # Draw landmark point
+                cv2.circle(output_frame, (x, y), 6, (0, 255, 0), -1)
 
-                # Show landmark name
+                # Draw label
                 cv2.putText(
-                    frame,
+                    output_frame,
                     name,
                     (x + 10, y - 10),
                     cv2.FONT_HERSHEY_SIMPLEX,
@@ -80,4 +111,8 @@ class PoseDetector:
                     1
                 )
 
-        return frame, landmarks
+        return {
+            "frame": output_frame,
+            "mask": binary_mask,
+            "landmarks": landmarks
+        }

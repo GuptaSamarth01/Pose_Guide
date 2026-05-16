@@ -4,46 +4,86 @@ from src.pose_detector import PoseDetector
 
 def main():
 
-    # Initialize webcam
+    # Webcam
     cap = cv2.VideoCapture(0)
 
-    # Check webcam
     if not cap.isOpened():
         print("Error: Cannot access webcam")
         return
 
-    # Initialize detector
     detector = PoseDetector()
+
+    captured = False
+    frozen_result = None
 
     while True:
 
-        # Read frame
-        ret, frame = cap.read()
+        # ==========================
+        # LIVE PREVIEW MODE
+        # ==========================
 
-        if not ret:
-            print("Error: Cannot read frame")
-            break
+        if not captured:
 
-        # Flip frame for mirror effect
-        frame = cv2.flip(frame, 1)
+            ret, frame = cap.read()
 
-        # Detect pose
-        output_frame, landmarks = detector.detect_pose(frame)
+            if not ret:
+                break
 
-        # Print landmarks
-        if landmarks:
-            print(landmarks)
+            # Mirror view
+            frame = cv2.flip(frame, 1)
 
-        # Show frame
-        cv2.imshow("PoseGuide - Pose Detection", output_frame)
+            # Instructions
+            cv2.putText(
+                frame,
+                "Press SPACE to Capture",
+                (20, 40),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                (0, 255, 0),
+                2
+            )
 
-        # Exit on Q key
+            cv2.imshow("PoseGuide", frame)
+
+        # ==========================
+        # FROZEN ANALYSIS MODE
+        # ==========================
+
+        else:
+
+            cv2.imshow("PoseGuide", frozen_result["frame"])
+            cv2.imshow("Segmentation Mask", frozen_result["mask"])
+
+        # ==========================
+        # KEYBOARD CONTROLS
+        # ==========================
+
         key = cv2.waitKey(1)
 
-        if key == ord('q'):
+        # SPACE → Capture
+        if key == 32 and not captured:
+
+            result = detector.detect_pose(frame)
+
+            frozen_result = result
+
+            captured = True
+
+            print("\n===== LANDMARKS =====")
+
+            for name, coords in result["landmarks"].items():
+                print(f"{name}: {coords}")
+
+        # R → Reset
+        elif key == ord('r'):
+
+            captured = False
+            frozen_result = None
+
+        # Q → Quit
+        elif key == ord('q'):
             break
 
-    # Release resources
     cap.release()
     cv2.destroyAllWindows()
 
