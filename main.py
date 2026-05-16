@@ -60,7 +60,7 @@ def main():
             output_frame = result["frame"]
 
             # ==========================
-            # VALID POSE DETECTED
+            # VALID POSE
             # ==========================
 
             if result["valid_pose"]:
@@ -94,16 +94,19 @@ def main():
 
                     captured = True
 
-            # ==========================
-            # INVALID POSE
-            # ==========================
-
             else:
 
+                # Reset timer if pose invalid
                 valid_start_time = None
 
-            # Show live frame
-            cv2.imshow("PoseGuide", output_frame)
+            # ==========================
+            # SHOW LIVE FRAME
+            # ==========================
+
+            cv2.imshow(
+                "PoseGuide",
+                output_frame
+            )
 
         # ==========================
         # CAPTURED MODE
@@ -111,7 +114,7 @@ def main():
 
         else:
 
-            frozen_frame = frozen_result["frame"]
+            frozen_frame = frozen_result["frame"].copy()
 
             cv2.putText(
                 frozen_frame,
@@ -123,7 +126,10 @@ def main():
                 3
             )
 
-            cv2.imshow("PoseGuide", frozen_frame)
+            cv2.imshow(
+                "PoseGuide",
+                frozen_frame
+            )
 
             cv2.imshow(
                 "Segmentation Mask",
@@ -136,7 +142,7 @@ def main():
 
         key = cv2.waitKey(1)
 
-        # R → Reset
+        # RESET
         if key == ord('r'):
 
             captured = False
@@ -145,7 +151,7 @@ def main():
 
             valid_start_time = None
 
-        # Q → Quit
+        # QUIT
         elif key == ord('q'):
             break
 
